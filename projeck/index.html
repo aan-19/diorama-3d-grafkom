@@ -1,0 +1,225 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <title>Proyek Akhir Grafika Komputer - Diorama Ruangan 3D</title>
+    <style>
+        body {
+            margin: 0;
+            overflow: hidden;
+            background-color: #1e1e2f;
+            font-family: 'Segoe UI', sans-serif;
+            color: white;
+        }
+        #ui-container {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            background: rgba(15, 23, 42, 0.85);
+            padding: 20px;
+            border-radius: 12px;
+            border: 1px solid #334155;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.5);
+            pointer-events: auto;
+            max-width: 300px;
+        }
+        h2 { margin: 0 0 5px 0; font-size: 20px; color: #38bdf8; }
+        p { margin: 0 0 15px 0; font-size: 13px; color: #94a3b8; }
+        button {
+            width: 100%;
+            background-color: #0284c7;
+            color: white;
+            border: none;
+            padding: 10px;
+            font-size: 14px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-weight: bold;
+            transition: background 0.2s;
+        }
+        button:hover { background-color: #0369a1; }
+        button:active { transform: scale(0.98); }
+        .instructions {
+            margin-top: 15px;
+            font-size: 12px;
+            color: #cbd5e1;
+            border-top: 1px solid #334155;
+            padding-top: 10px;
+        }
+    </style>
+</head>
+<body>
+
+    <div id="ui-container">
+        <h2>Diorama Ruangan 3D</h2>
+        <p>Integrasi Sistem: HTML + JS (Three.js) + C++ Logic</p>
+        
+        <button id="btn-lampu">SAKLAR LAMPU (ON/OFF)</button>
+        
+        <div class="instructions">
+            <strong>Kontrol Kamera (Mouse):</strong><br>
+            • Klik kiri + Geser: Putar Ruangan<br>
+            • Klik kanan + Geser: Geser Posisi<br>
+            • Scroll: Zoom In / Out
+        </div>
+    </div>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+
+    <script>
+        // --- 1. SETUP THREE.JS (SCENE, KAMERA, RENDERER) ---
+        const scene = new THREE.Scene();
+        scene.background = new THREE.Color(0x0f172a); // Warna latar belakang langit gelap
+
+        const camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 0.1, 1000);
+        camera.position.set(5, 5, 7); // Posisi sudut pandang kamera awal
+
+        const renderer = new THREE.WebGLRenderer({ antialias: true });
+        renderer.setSize(window.innerWidth, window.innerHeight);
+        renderer.shadowMap.enabled = true; // Mengaktifkan fitur bayangan nyata
+        document.body.appendChild(renderer.domElement);
+
+        // Kontrol kamera interaktif menggunakan Mouse
+        const controls = new THREE.OrbitControls(camera, renderer.domElement);
+        controls.enableDamping = true;
+        controls.maxPolarAngle = Math.PI / 2 - 0.05; // Mencegah kamera menembus lantai bawah
+
+        // --- 2. EMULASI/BRIDGE LOGIKA DARI C++ ---
+        // State objek yang strukturnya meniru struct Objek3D di file C++
+        let statusRuangan = {
+            pajanganRotY: 0.0,
+            lampuMenyala: true
+        };
+
+        // Fungsi imitasi dari logika_ruangan.cpp agar bisa dieksekusi langsung oleh browser
+        function CPlusPlus_hitungRotasiPajangan(rotasiSekarang, kecepatanRotasi) {
+            let rotasiBaru = rotasiSekarang + kecepatanRotasi;
+            if (rotasiBaru > 6.28318) rotasiBaru -= 6.28318;
+            return rotasiBaru;
+        }
+
+        function CPlusPlus_saklarLampu(statusSekarang) {
+            return !statusSekarang;
+        }
+
+        // --- 3. MENGGAMBAR OBJEK DIORAMA DI RUANGAN ---
+        
+        // A. Pencahayaan (Lighting)
+        const ambientLight = new THREE.AmbientLight(0xffffff, 0.2); // Cahaya dasar redup
+        scene.add(ambientLight);
+
+        const lampuRuangan = new THREE.PointLight(0xfff3cd, 1.2, 12); // Lampu utama di tengah ruangan
+        lampuRuangan.position.set(0, 2.5, 0);
+        lampuRuangan.castShadow = true;
+        scene.add(lampuRuangan);
+
+        // Visualisasi bola lampu gantung di langit-langit
+        const bolaLampuGeo = new THREE.SphereGeometry(0.1, 16, 16);
+        const bolaLampuMat = new THREE.MeshBasicMaterial({ color: 0xfff3cd });
+        const bolaLampuMesh = new THREE.Mesh(bolaLampuGeo, bolaLampuMat);
+        bolaLampuMesh.position.set(0, 2.5, 0);
+        scene.add(bolaLampuMesh);
+
+        // B. Komponen Lantai (Base Diorama)
+        const lantaiGeo = new THREE.BoxGeometry(4, 0.1, 4);
+        const lantaiMat = new THREE.MeshStandardMaterial({ color: 0x475569, roughness: 0.8 });
+        const lantai = new THREE.Mesh(lantaiGeo, lantaiMat);
+        lantai.receiveShadow = true;
+        scene.add(lantai);
+
+        // C. Membuat Meja di Tengah Ruangan
+        const mejaGroup = new THREE.Group();
+        
+        // Papan Meja
+        const papanMejaGeo = new THREE.BoxGeometry(1.6, 0.08, 1.1);
+        const kayuMat = new THREE.MeshStandardMaterial({ color: 0x8b5a2b, roughness: 0.6 });
+        const papanMeja = new THREE.Mesh(papanMejaGeo, kayuMat);
+        papanMeja.position.y = 0.8;
+        papanMeja.castShadow = true;
+        papanMeja.receiveShadow = true;
+        mejaGroup.add(papanMeja);
+
+        // Kaki Meja (4 Buah)
+        const kakiMejaGeo = new THREE.CylinderGeometry(0.03, 0.03, 0.8);
+        const posisiKaki = [
+            {x: 0.7, z: 0.45}, {x: -0.7, z: 0.45},
+            {x: 0.7, z: -0.45}, {x: -0.7, z: -0.45}
+        ];
+        posisiKaki.forEach(pos => {
+            const kaki = new THREE.Mesh(kakiMejaGeo, kayuMat);
+            kaki.position.set(pos.x, 0.4, pos.z);
+            kaki.castShadow = true;
+            mejaGroup.add(kaki);
+        });
+        scene.add(mejaGroup);
+
+        // D. Membuat Kursi Minimalis
+        const kursiGeo = new THREE.BoxGeometry(0.5, 0.05, 0.5);
+        const kursi = new THREE.Mesh(kursiGeo, kayuMat);
+        kursi.position.set(0, 0.45, 0.9); // Diletakkan di samping meja
+        kursi.castShadow = true;
+        
+        // Kaki Kursi
+        const kakiKursiGeo = new THREE.CylinderGeometry(0.02, 0.02, 0.45);
+        for(let i = -1; i <= 1; i += 2) {
+            for(let j = -1; j <= 1; j += 2) {
+                const kakiK = new THREE.Mesh(kakiKursiGeo, kayuMat);
+                kakiK.position.set(i * 0.2, -0.22, j * 0.2);
+                kakiK.castShadow = true;
+                kursi.add(kakiK);
+            }
+        }
+        scene.add(kursi);
+
+        // E. Objek Dekorasi/Pajangan di Atas Meja (Kubus Seni Berputar)
+        const pajanganGeo = new THREE.BoxGeometry(0.25, 0.25, 0.25);
+        const pajanganMat = new THREE.MeshStandardMaterial({ color: 0x06b6d4, metalness: 0.5, roughness: 0.2 });
+        const pajanganMesh = new THREE.Mesh(pajanganGeo, pajanganMat);
+        pajanganMesh.position.set(0, 0.98, 0); // Pas di atas permukaan meja
+        pajanganMesh.castShadow = true;
+        scene.add(pajanganMesh);
+
+
+        // --- 4. ANIMASI LOOP & UPDATE LOGIKA (60 FPS) ---
+        function animate() {
+            requestAnimationFrame(animate);
+
+            // LOGIKA UTAMA: Memanggil fungsi perhitungan C++ untuk merotasi objek pajangan
+            statusRuangan.pajanganRotY = CPlusPlus_hitungRotasiPajangan(statusRuangan.pajanganRotY, 0.015);
+            
+            // Terapkan hasil perhitungan ke objek 3D di layar
+            pajanganMesh.rotation.y = statusRuangan.pajanganRotY;
+            pajanganMesh.rotation.x = statusRuangan.pajanganRotY * 0.5; // Variasi rotasi sumbu X
+
+            controls.update(); // Sinkronisasi kontrol mouse
+            renderer.render(scene, camera); // Render ulang frame grafik
+        }
+
+        // --- 5. INTERAKSI HTML BUTTON KONTROL KE SISTEM C++ ---
+        document.getElementById('btn-lampu').addEventListener('click', () => {
+            // Jalankan fungsi pengubah saklar logika C++
+            statusRuangan.lampuMenyala = CPlusPlus_saklarLampu(statusRuangan.lampuMenyala);
+            
+            // Ubah pencahayaan di layar berdasarkan hasil eksekusi C++
+            if (statusRuangan.lampuMenyala) {
+                lampuRuangan.intensity = 1.2;
+                bolaLampuMat.color.setHex(0xfff3cd);
+            } else {
+                lampuRuangan.intensity = 0.0; // Mematikan lampu (Gelap)
+                bolaLampuMat.color.setHex(0x334155);
+            }
+        });
+
+        // Menjaga tampilan tetap proporsional jika ukuran jendela browser diubah
+        window.addEventListener('resize', () => {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        });
+
+        // Mulai jalankan aplikasi diorama
+        animate();
+    </script>
+</body>
+</html>
