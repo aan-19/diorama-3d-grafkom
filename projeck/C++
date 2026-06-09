@@ -1,0 +1,24 @@
+// FILE: logika_ruangan.cpp
+#include <iostream>
+
+// Struktur data C++ untuk menyimpan posisi dan rotasi objek 3D
+struct Objek3D {
+    float posX, posY, posZ;
+    float rotX, rotY, rotZ;
+    bool lampuMenyala;
+};
+
+// Fungsi C++ untuk menghitung rotasi baru objek dekorasi (pajangan meja) setiap frame
+float hitungRotasiPajangan(float rotasiSekarang, float kecepatanRotasi) {
+    float rotasiBaru = rotasiSekarang + kecepatanRotasi;
+    // Reset sudut jika sudah melebihi 360 derajat (2 * PI Radian) agar tidak overflow
+    if (rotasiBaru > 6.28318f) {
+        rotasiBaru -= 6.28318f;
+    }
+    return rotasiBaru;
+}
+
+// Fungsi C++ untuk logika interaksi saklar lampu ruangan (On/Off)
+bool saklarLampu(bool statusSekarang) {
+    return !statusSekarang; // Membalikkan status lampu (Toggle)
+}
